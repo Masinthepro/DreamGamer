@@ -1,4 +1,8 @@
 import { users, scores, achievements, type User, type InsertUser, type Score, type Achievement } from "@shared/schema";
+import session from "express-session";
+import createMemoryStore from "memorystore";
+
+const MemoryStore = createMemoryStore(session);
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
@@ -10,6 +14,7 @@ export interface IStorage {
   getUserScores(userId: number): Promise<Score[]>;
   createAchievement(userId: number, type: string): Promise<Achievement>;
   getUserAchievements(userId: number): Promise<Achievement[]>;
+  sessionStore: session.Store;
 }
 
 export class MemStorage implements IStorage {
@@ -17,12 +22,16 @@ export class MemStorage implements IStorage {
   private scores: Map<number, Score>;
   private achievements: Map<number, Achievement>;
   private currentId: number;
+  sessionStore: session.Store;
 
   constructor() {
     this.users = new Map();
     this.scores = new Map();
     this.achievements = new Map();
     this.currentId = 1;
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000, // prune expired entries every 24h
+    });
   }
 
   async getUser(id: number): Promise<User | undefined> {

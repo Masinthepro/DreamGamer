@@ -10,8 +10,12 @@ import {
 import { Card } from "@/components/ui/card";
 import { TrophyIcon } from "lucide-react";
 
+interface ScoreWithUsername extends Score {
+  username: string;
+}
+
 export default function Leaderboard() {
-  const { data: scores } = useQuery({
+  const { data: scores } = useQuery<ScoreWithUsername[]>({
     queryKey: ["/api/scores/top"],
   });
 
@@ -37,7 +41,7 @@ export default function Leaderboard() {
                 {scores?.map((score, index) => (
                   <TableRow key={score.id}>
                     <TableCell className="font-medium">#{index + 1}</TableCell>
-                    <TableCell>Player {score.userId}</TableCell>
+                    <TableCell>{score.username}</TableCell>
                     <TableCell className="text-right">{score.score}</TableCell>
                   </TableRow>
                 ))}
