@@ -10,6 +10,7 @@ export default function Game() {
   const engineRef = useRef<GameEngine | null>(null);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const gameOverToastShownRef = useRef(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -24,6 +25,9 @@ export default function Game() {
     const engine = new GameEngine(canvas);
     engineRef.current = engine;
 
+    // Focus canvas for keyboard controls
+    canvas.focus();
+
     // Start game
     engine.start();
 
@@ -33,6 +37,11 @@ export default function Game() {
 
     // Set up keyboard controls
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent default browser behavior for game controls
+      if (["ArrowLeft", "ArrowRight", " "].includes(e.key)) {
+        e.preventDefault();
+      }
+
       if (e.key === "ArrowLeft") {
         engine.movePlayer("left");
       } else if (e.key === "ArrowRight") {
@@ -51,10 +60,13 @@ export default function Game() {
       if (engine.isGameOver() && !gameOver) {
         setGameOver(true);
         audio.playSound("explosion");
-        toast({
-          title: "Game Over!",
-          description: `Final score: ${engine.getScore()}`,
-        });
+        if (!gameOverToastShownRef.current) {
+          toast({
+            title: "Game Over!",
+            description: `Final score: ${engine.getScore()}`,
+          });
+          gameOverToastShownRef.current = true;
+        }
       }
     }, 100);
 
@@ -72,6 +84,12 @@ export default function Game() {
       engineRef.current.start();
       setGameOver(false);
       setScore(0);
+      gameOverToastShownRef.current = false;
+
+      // Refocus the canvas
+      if (canvasRef.current) {
+        canvasRef.current.focus();
+      }
     }
   };
 
@@ -92,6 +110,7 @@ export default function Game() {
             <canvas
               ref={canvasRef}
               className="w-full h-full border border-border rounded-lg"
+              tabIndex={0} // Make canvas focusable
             />
           </div>
 
@@ -100,6 +119,7 @@ export default function Game() {
             <div className="text-muted-foreground">
               <p>← → Arrow keys to move</p>
               <p>Spacebar to shoot</p>
+              <p className="text-sm mt-2">Click the game area to enable controls</p>
             </div>
           </Card>
         </div>
