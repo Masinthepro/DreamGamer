@@ -1,4 +1,4 @@
-import { type Entity, Player, Enemy, Bullet } from "./entities";
+import { type Entity, Player, Enemy, Bullet, type EnemyType } from "./entities";
 
 export interface GameState {
   player: Player;
@@ -13,7 +13,9 @@ export class GameEngine {
   private ctx: CanvasRenderingContext2D;
   private state: GameState;
   private lastSpawn: number = 0;
-  private spawnInterval: number = 1000;
+  private spawnInterval: number = 800; // Decreased from 1000
+  private lastEnemyShot: number = 0;
+  private enemyShootInterval: number = 1500;
   private animationId: number | null = null;
   private lastTimestamp: number = 0;
 
@@ -32,6 +34,7 @@ export class GameEngine {
   start() {
     this.state.gameOver = false;
     this.state.score = 0;
+    this.state.player.health = 100;
     this.lastTimestamp = performance.now();
     this.animate(this.lastTimestamp);
   }
@@ -57,6 +60,7 @@ export class GameEngine {
   private update(deltaTime: number) {
     this.updateEntities(deltaTime);
     this.spawnEnemies(deltaTime);
+    this.handleEnemyShooting(deltaTime);
     this.checkCollisions();
   }
 
@@ -70,7 +74,7 @@ export class GameEngine {
       bullet => bullet.y > 0 && bullet.y < this.canvas.height
     );
     this.state.enemies = this.state.enemies.filter(
-      enemy => enemy.y < this.canvas.height
+      enemy => enemy.y < this.canvas.height && enemy.x > 0 && enemy.x < this.canvas.width
     );
   }
 
@@ -78,27 +82,64 @@ export class GameEngine {
     this.lastSpawn += deltaTime;
     if (this.lastSpawn >= this.spawnInterval) {
       const x = Math.random() * (this.canvas.width - 30);
-      this.state.enemies.push(new Enemy(x, -30));
+      const types: EnemyType[] = ["basic", "shooter", "zigzag"];
+      const type = types[Math.floor(Math.random() * types.length)];
+      this.state.enemies.push(new Enemy(x, -30, type));
       this.lastSpawn = 0;
+
+      // Increase difficulty over time
+      if (this.spawnInterval > 400) {
+        this.spawnInterval -= 10;
+      }
+    }
+  }
+
+  private handleEnemyShooting(deltaTime: number) {
+    this.lastEnemyShot += deltaTime;
+    if (this.lastEnemyShot >= this.enemyShootInterval) {
+      const shooters = this.state.enemies.filter(enemy => enemy.type === "shooter");
+      shooters.forEach(shooter => {
+        this.state.bullets.push(
+          new Bullet(shooter.x + shooter.width / 2, shooter.y + shooter.height, true)
+        );
+      });
+      this.lastEnemyShot = 0;
     }
   }
 
   private checkCollisions() {
-    // Check bullet-enemy collisions
+    // Check player bullets hitting enemies
     this.state.bullets.forEach((bullet, bulletIndex) => {
-      this.state.enemies.forEach((enemy, enemyIndex) => {
-        if (this.checkCollision(bullet, enemy)) {
-          this.state.bullets.splice(bulletIndex, 1);
-          this.state.enemies.splice(enemyIndex, 1);
-          this.state.score += 100;
+      if (!bullet.isEnemy) {
+        this.state.enemies.forEach((enemy, enemyIndex) => {
+          if (this.checkCollision(bullet, enemy)) {
+            this.state.bullets.splice(bulletIndex, 1);
+            this.state.enemies.splice(enemyIndex, 1);
+            this.state.score += enemy.type === "shooter" ? 150 : 
+                               enemy.type === "zigzag" ? 200 : 100;
+          }
+        });
+      }
+    });
+
+    // Check enemy bullets hitting player
+    this.state.bullets.forEach((bullet, bulletIndex) => {
+      if (bullet.isEnemy && this.checkCollision(bullet, this.state.player)) {
+        this.state.bullets.splice(bulletIndex, 1);
+        this.state.player.takeDamage(20);
+        if (this.state.player.health <= 0) {
+          this.state.gameOver = true;
         }
-      });
+      }
     });
 
     // Check player-enemy collisions
     this.state.enemies.forEach(enemy => {
       if (this.checkCollision(this.state.player, enemy)) {
-        this.state.gameOver = true;
+        this.state.player.takeDamage(50);
+        if (this.state.player.health <= 0) {
+          this.state.gameOver = true;
+        }
       }
     });
   }
