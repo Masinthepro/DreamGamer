@@ -1,5 +1,39 @@
 import { type Entity, Player, Enemy, Bullet, type EnemyType } from "./entities";
 
+export type Difficulty = "easy" | "medium" | "hard";
+
+interface DifficultySettings {
+  spawnInterval: number;
+  enemySpeed: number;
+  enemyDamage: number;
+  playerHealth: number;
+  bulletDamage: number;
+}
+
+const DIFFICULTY_SETTINGS: Record<Difficulty, DifficultySettings> = {
+  easy: {
+    spawnInterval: 1000,
+    enemySpeed: 2,
+    enemyDamage: 10,
+    playerHealth: 150,
+    bulletDamage: 15,
+  },
+  medium: {
+    spawnInterval: 800,
+    enemySpeed: 3,
+    enemyDamage: 20,
+    playerHealth: 100,
+    bulletDamage: 20,
+  },
+  hard: {
+    spawnInterval: 600,
+    enemySpeed: 4,
+    enemyDamage: 30,
+    playerHealth: 80,
+    bulletDamage: 25,
+  },
+};
+
 export interface GameState {
   player: Player;
   enemies: Enemy[];
@@ -13,17 +47,23 @@ export class GameEngine {
   private ctx: CanvasRenderingContext2D;
   private state: GameState;
   private lastSpawn: number = 0;
-  private spawnInterval: number = 800; // Decreased from 1000
+  private spawnInterval: number;
   private lastEnemyShot: number = 0;
   private enemyShootInterval: number = 1500;
   private animationId: number | null = null;
   private lastTimestamp: number = 0;
+  private difficulty: Difficulty;
+  private settings: DifficultySettings;
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, difficulty: Difficulty = "medium") {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
+    this.difficulty = difficulty;
+    this.settings = DIFFICULTY_SETTINGS[difficulty];
+    this.spawnInterval = this.settings.spawnInterval;
+
     this.state = {
-      player: new Player(canvas.width / 2, canvas.height - 50),
+      player: new Player(canvas.width / 2, canvas.height - 50, this.settings.playerHealth),
       enemies: [],
       bullets: [],
       score: 0,
@@ -34,7 +74,7 @@ export class GameEngine {
   start() {
     this.state.gameOver = false;
     this.state.score = 0;
-    this.state.player.health = 100;
+    this.state.player.health = this.settings.playerHealth;
     this.lastTimestamp = performance.now();
     this.animate(this.lastTimestamp);
   }
@@ -93,10 +133,12 @@ export class GameEngine {
       const x = Math.random() * (this.canvas.width - 30);
       const types: EnemyType[] = ["basic", "shooter", "zigzag"];
       const type = types[Math.floor(Math.random() * types.length)];
-      this.state.enemies.push(new Enemy(x, -30, type));
+      const enemy = new Enemy(x, -30, type, this.settings.enemySpeed);
+      this.state.enemies.push(enemy);
       this.lastSpawn = 0;
 
-      if (this.spawnInterval > 400) {
+      // Increase difficulty over time, but maintain relative difficulty levels
+      if (this.spawnInterval > this.settings.spawnInterval * 0.5) {
         this.spawnInterval -= 10;
       }
     }
@@ -132,7 +174,7 @@ export class GameEngine {
     this.state.bullets.forEach((bullet, bulletIndex) => {
       if (bullet.isEnemy && this.checkCollision(bullet, this.state.player)) {
         this.state.bullets.splice(bulletIndex, 1);
-        this.state.player.takeDamage(20);
+        this.state.player.takeDamage(this.settings.enemyDamage);
         if (this.state.player.health <= 0) {
           this.state.gameOver = true;
         }
@@ -141,7 +183,7 @@ export class GameEngine {
 
     this.state.enemies.forEach(enemy => {
       if (this.checkCollision(this.state.player, enemy)) {
-        this.state.player.takeDamage(50);
+        this.state.player.takeDamage(this.settings.enemyDamage * 2);
         if (this.state.player.health <= 0) {
           this.state.gameOver = true;
         }

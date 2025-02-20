@@ -5,16 +5,21 @@ import { GameEngine } from "@/lib/game/engine";
 import { AudioManager } from "@/lib/game/audio";
 import { useToast } from "@/hooks/use-toast";
 
+type Difficulty = "easy" | "medium" | "hard";
+
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const gameOverToastShownRef = useRef(false);
   const keysPressed = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
+    if (!difficulty) return; // Don't start game until difficulty is selected
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -22,8 +27,8 @@ export default function Game() {
     canvas.width = 800;
     canvas.height = 600;
 
-    // Initialize game engine
-    const engine = new GameEngine(canvas);
+    // Initialize game engine with difficulty
+    const engine = new GameEngine(canvas, difficulty);
     engineRef.current = engine;
 
     // Focus canvas for keyboard controls
@@ -89,23 +94,61 @@ export default function Game() {
       engine.stop();
       audio.stopMusic();
     };
-  }, []);
+  }, [difficulty]); // Add difficulty to dependency array
 
   const handleRestart = () => {
     if (engineRef.current) {
       engineRef.current.stop();
-      engineRef.current.start();
+      setDifficulty(null); // Reset difficulty selection
       setGameOver(false);
       setScore(0);
       gameOverToastShownRef.current = false;
       keysPressed.current.clear();
-
-      // Refocus the canvas
-      if (canvasRef.current) {
-        canvasRef.current.focus();
-      }
     }
   };
+
+  const difficultySettings = {
+    easy: {
+      description: "Slower enemies, less damage",
+      color: "bg-green-500",
+    },
+    medium: {
+      description: "Balanced gameplay",
+      color: "bg-yellow-500",
+    },
+    hard: {
+      description: "Faster enemies, more damage",
+      color: "bg-red-500",
+    },
+  };
+
+  if (!difficulty) {
+    return (
+      <div className="min-h-screen pt-16 bg-gradient-to-b from-background to-background/95">
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <Card className="p-8">
+              <h2 className="text-2xl font-bold text-center mb-6">Select Difficulty</h2>
+              <div className="grid gap-4">
+                {(Object.keys(difficultySettings) as Difficulty[]).map((diff) => (
+                  <Button
+                    key={diff}
+                    onClick={() => setDifficulty(diff)}
+                    className={`w-full h-16 text-lg capitalize ${difficultySettings[diff].color}`}
+                  >
+                    {diff}
+                    <span className="ml-2 text-sm opacity-80">
+                      - {difficultySettings[diff].description}
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pt-16 bg-gradient-to-b from-background to-background/95">

@@ -12,7 +12,7 @@ export class Player implements Entity {
   y: number;
   width: number = 40;
   height: number = 40;
-  health: number = 100;
+  health: number;
   velocity: number = 0;
   maxVelocity: number = 8;
   acceleration: number = 0.5;
@@ -20,9 +20,10 @@ export class Player implements Entity {
   private lastShot: number = 0;
   private shootCooldown: number = 250; // 250ms cooldown between shots
 
-  constructor(x: number, y: number) {
+  constructor(x: number, y: number, initialHealth: number = 100) {
     this.x = x;
     this.y = y;
+    this.health = initialHealth;
   }
 
   update(deltaTime: number) {
@@ -51,6 +52,7 @@ export class Player implements Entity {
   }
 
   render(ctx: CanvasRenderingContext2D) {
+    // Draw player ship
     ctx.fillStyle = "#00ff00";
     ctx.beginPath();
     ctx.moveTo(this.x + this.width / 2, this.y);
@@ -97,20 +99,23 @@ export class Enemy implements Entity {
   y: number;
   width: number = 30;
   height: number = 30;
-  speed: number = 3;
   type: EnemyType;
   private time: number = 0;
   private amplitude: number = 100;
   private frequency: number = 0.002;
+  speed: number;
 
-  constructor(x: number, y: number, type: EnemyType = "basic") {
+  constructor(x: number, y: number, type: EnemyType = "basic", baseSpeed: number = 3) {
     this.x = x;
     this.y = y;
     this.type = type;
+    this.speed = baseSpeed;
+
+    // Adjust speed based on enemy type
     if (type === "shooter") {
-      this.speed = 2;
+      this.speed = baseSpeed * 0.7; // Slower
     } else if (type === "zigzag") {
-      this.speed = 4;
+      this.speed = baseSpeed * 1.3; // Faster
     }
   }
 
