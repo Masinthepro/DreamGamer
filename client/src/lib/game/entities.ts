@@ -17,6 +17,8 @@ export class Player implements Entity {
   maxVelocity: number = 8;
   acceleration: number = 0.5;
   friction: number = 0.92;
+  private lastShot: number = 0;
+  private shootCooldown: number = 250; // 250ms cooldown between shots
 
   constructor(x: number, y: number) {
     this.x = x;
@@ -37,6 +39,15 @@ export class Player implements Entity {
 
   moveRight() {
     this.velocity = Math.min(this.velocity + this.acceleration, this.maxVelocity);
+  }
+
+  canShoot(): boolean {
+    const now = performance.now();
+    return now - this.lastShot >= this.shootCooldown;
+  }
+
+  shoot(): void {
+    this.lastShot = performance.now();
   }
 
   render(ctx: CanvasRenderingContext2D) {
@@ -60,6 +71,17 @@ export class Player implements Entity {
       (healthBarWidth * this.health) / 100,
       healthBarHeight
     );
+
+    // Render reload indicator
+    if (!this.canShoot()) {
+      const reloadProgress = Math.min(
+        (performance.now() - this.lastShot) / this.shootCooldown,
+        1
+      );
+      const reloadWidth = this.width * reloadProgress;
+      ctx.fillStyle = "#ffff00";
+      ctx.fillRect(this.x, this.y - 15, reloadWidth, 2);
+    }
   }
 
   takeDamage(amount: number) {

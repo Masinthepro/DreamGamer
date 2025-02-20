@@ -172,7 +172,8 @@ export class GameEngine {
   }
 
   shoot() {
-    if (!this.state.gameOver) {
+    if (!this.state.gameOver && this.state.player.canShoot()) {
+      this.state.player.shoot();
       const bullet = new Bullet(
         this.state.player.x + this.state.player.width / 2,
         this.state.player.y
