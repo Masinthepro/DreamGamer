@@ -4,10 +4,16 @@ import { Card } from "@/components/ui/card";
 import { GameEngine } from "@/lib/game/engine";
 import { AudioManager } from "@/lib/game/audio";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useLocation } from "wouter";
 
 type Difficulty = "easy" | "medium" | "hard";
 
 export default function Game() {
+  const [location, setLocation] = useLocation();
+  const { user } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const [score, setScore] = useState(0);
@@ -17,7 +23,38 @@ export default function Game() {
   const keysPressed = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
+  const submitScore = useMutation({
+    mutationFn: async (score: number) => {
+      const res = await apiRequest("POST", "/api/scores", { score });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/scores/top"] });
+      toast({
+        title: "Score submitted!",
+        description: "Your score has been added to the leaderboard.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to submit score",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   useEffect(() => {
+    if (!user) {
+      toast({
+        title: "Login required",
+        description: "Please log in to save your scores to the leaderboard.",
+        variant: "destructive",
+      });
+      setLocation("/auth");
+      return;
+    }
+
     if (!difficulty) return; // Don't start game until difficulty is selected
 
     const canvas = canvasRef.current;
@@ -78,6 +115,7 @@ export default function Game() {
         setGameOver(true);
         audio.playSound("explosion");
         if (!gameOverToastShownRef.current) {
+          submitScore.mutate(engine.getScore());
           toast({
             title: "Game Over!",
             description: `Final score: ${engine.getScore()}`,
@@ -94,7 +132,7 @@ export default function Game() {
       engine.stop();
       audio.stopMusic();
     };
-  }, [difficulty]); // Add difficulty to dependency array
+  }, [difficulty, user]); // Add user to dependency array
 
   const handleRestart = () => {
     if (engineRef.current) {
@@ -121,6 +159,10 @@ export default function Game() {
       color: "bg-red-500",
     },
   };
+
+  if (!user) {
+    return null; // Return null since we're redirecting in useEffect
+  }
 
   if (!difficulty) {
     return (

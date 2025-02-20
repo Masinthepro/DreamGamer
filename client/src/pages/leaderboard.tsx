@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { TrophyIcon } from "lucide-react";
+import { type Score } from "@shared/schema";
 
 interface ScoreWithUsername extends Score {
   username: string;
