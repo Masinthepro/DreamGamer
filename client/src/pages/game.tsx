@@ -11,6 +11,7 @@ export default function Game() {
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const gameOverToastShownRef = useRef(false);
+  const keysPressed = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -40,22 +41,33 @@ export default function Game() {
       // Prevent default browser behavior for game controls
       if (["ArrowLeft", "ArrowRight", " "].includes(e.key)) {
         e.preventDefault();
+        keysPressed.current.add(e.key);
       }
 
-      if (e.key === "ArrowLeft") {
-        engine.movePlayer("left");
-      } else if (e.key === "ArrowRight") {
-        engine.movePlayer("right");
-      } else if (e.key === " ") {
+      if (e.key === " ") {
         engine.shoot();
         audio.playSound("shoot");
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (["ArrowLeft", "ArrowRight"].includes(e.key)) {
+        keysPressed.current.delete(e.key);
+      }
+    };
 
-    // Game loop to check state
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    // Game loop to check state and handle continuous movement
     const gameLoop = setInterval(() => {
+      if (keysPressed.current.has("ArrowLeft")) {
+        engine.movePlayer("left");
+      }
+      if (keysPressed.current.has("ArrowRight")) {
+        engine.movePlayer("right");
+      }
+
       setScore(engine.getScore());
       if (engine.isGameOver() && !gameOver) {
         setGameOver(true);
@@ -68,10 +80,11 @@ export default function Game() {
           gameOverToastShownRef.current = true;
         }
       }
-    }, 100);
+    }, 16); // ~60fps
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
       clearInterval(gameLoop);
       engine.stop();
       audio.stopMusic();
@@ -85,6 +98,7 @@ export default function Game() {
       setGameOver(false);
       setScore(0);
       gameOverToastShownRef.current = false;
+      keysPressed.current.clear();
 
       // Refocus the canvas
       if (canvasRef.current) {
@@ -110,7 +124,7 @@ export default function Game() {
             <canvas
               ref={canvasRef}
               className="w-full h-full border border-border rounded-lg"
-              tabIndex={0} // Make canvas focusable
+              tabIndex={0}
             />
           </div>
 

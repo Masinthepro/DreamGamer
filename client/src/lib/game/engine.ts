@@ -58,10 +58,20 @@ export class GameEngine {
   }
 
   private update(deltaTime: number) {
+    if (this.state.gameOver) return;
+
     this.updateEntities(deltaTime);
     this.spawnEnemies(deltaTime);
     this.handleEnemyShooting(deltaTime);
     this.checkCollisions();
+
+    if (this.state.player.x < 0) {
+      this.state.player.x = 0;
+      this.state.player.velocity = 0;
+    } else if (this.state.player.x > this.canvas.width - this.state.player.width) {
+      this.state.player.x = this.canvas.width - this.state.player.width;
+      this.state.player.velocity = 0;
+    }
   }
 
   private updateEntities(deltaTime: number) {
@@ -69,7 +79,6 @@ export class GameEngine {
     this.state.enemies.forEach(enemy => enemy.update(deltaTime));
     this.state.bullets.forEach(bullet => bullet.update(deltaTime));
 
-    // Remove off-screen entities
     this.state.bullets = this.state.bullets.filter(
       bullet => bullet.y > 0 && bullet.y < this.canvas.height
     );
@@ -87,7 +96,6 @@ export class GameEngine {
       this.state.enemies.push(new Enemy(x, -30, type));
       this.lastSpawn = 0;
 
-      // Increase difficulty over time
       if (this.spawnInterval > 400) {
         this.spawnInterval -= 10;
       }
@@ -108,21 +116,19 @@ export class GameEngine {
   }
 
   private checkCollisions() {
-    // Check player bullets hitting enemies
     this.state.bullets.forEach((bullet, bulletIndex) => {
       if (!bullet.isEnemy) {
         this.state.enemies.forEach((enemy, enemyIndex) => {
           if (this.checkCollision(bullet, enemy)) {
             this.state.bullets.splice(bulletIndex, 1);
             this.state.enemies.splice(enemyIndex, 1);
-            this.state.score += enemy.type === "shooter" ? 150 : 
-                               enemy.type === "zigzag" ? 200 : 100;
+            this.state.score += enemy.type === "shooter" ? 150 :
+              enemy.type === "zigzag" ? 200 : 100;
           }
         });
       }
     });
 
-    // Check enemy bullets hitting player
     this.state.bullets.forEach((bullet, bulletIndex) => {
       if (bullet.isEnemy && this.checkCollision(bullet, this.state.player)) {
         this.state.bullets.splice(bulletIndex, 1);
@@ -133,7 +139,6 @@ export class GameEngine {
       }
     });
 
-    // Check player-enemy collisions
     this.state.enemies.forEach(enemy => {
       if (this.checkCollision(this.state.player, enemy)) {
         this.state.player.takeDamage(50);
@@ -161,7 +166,6 @@ export class GameEngine {
     this.state.enemies.forEach(enemy => enemy.render(this.ctx));
     this.state.bullets.forEach(bullet => bullet.render(this.ctx));
 
-    // Render score
     this.ctx.fillStyle = "#ffffff";
     this.ctx.font = "20px 'Press Start 2P', system-ui";
     this.ctx.fillText(`Score: ${this.state.score}`, 10, 30);
@@ -179,10 +183,10 @@ export class GameEngine {
 
   movePlayer(direction: "left" | "right") {
     if (!this.state.gameOver) {
-      const speed = 5;
-      const newX = this.state.player.x + (direction === "left" ? -speed : speed);
-      if (newX >= 0 && newX <= this.canvas.width - this.state.player.width) {
-        this.state.player.x = newX;
+      if (direction === "left") {
+        this.state.player.moveLeft();
+      } else {
+        this.state.player.moveRight();
       }
     }
   }

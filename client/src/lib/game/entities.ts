@@ -13,13 +13,31 @@ export class Player implements Entity {
   width: number = 40;
   height: number = 40;
   health: number = 100;
+  velocity: number = 0;
+  maxVelocity: number = 8;
+  acceleration: number = 0.5;
+  friction: number = 0.92;
 
   constructor(x: number, y: number) {
     this.x = x;
     this.y = y;
   }
 
-  update(deltaTime: number) {}
+  update(deltaTime: number) {
+    // Apply friction to slow down naturally
+    this.velocity *= this.friction;
+
+    // Update position based on velocity
+    this.x += this.velocity;
+  }
+
+  moveLeft() {
+    this.velocity = Math.max(this.velocity - this.acceleration, -this.maxVelocity);
+  }
+
+  moveRight() {
+    this.velocity = Math.min(this.velocity + this.acceleration, this.maxVelocity);
+  }
 
   render(ctx: CanvasRenderingContext2D) {
     ctx.fillStyle = "#00ff00";
